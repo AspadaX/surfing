@@ -21,7 +21,7 @@ Surfing provides utilities to extract JSON objects from text streams, making it 
 - Support for processing partial JSON (streaming)
 - Serde integration for direct deserialization (optional feature)
   - Streaming deserializer for handling JSON in data streams
-- Zero dependencies (aside from `anyhow` for error handling)
+- Zero dependencies
 
 ## Installation
 
