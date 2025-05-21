@@ -7,7 +7,6 @@
 use std::io::Cursor;
 use std::marker::PhantomData;
 
-use anyhow::Error;
 use serde::de::DeserializeOwned;
 
 use crate::JSONParser;

@@ -2,8 +2,6 @@
 
 use std::io::Write;
 
-use anyhow::{Error, Result};
-
 use crate::constants::PAIRED_MARKERS;
 use crate::parser::marker::Marker;
 
@@ -170,7 +168,7 @@ impl JSONParser {
     ///     let _ = parser.extract_json_from_stream(&mut handle, "{\"key\": \"value\"}");
     /// }
     /// ```
-    pub fn extract_json_from_stream<W: Write>(&mut self, writer: &mut W, json_object: &str) -> Result<(), Error> {
+    pub fn extract_json_from_stream<W: Write>(&mut self, writer: &mut W, json_object: &str) -> Result<(), Box<dyn std::error::Error>> {
         for item in json_object.chars() {
             if self.is_in_json() {
                 self.buffer.push(item);

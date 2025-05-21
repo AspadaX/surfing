@@ -2,8 +2,6 @@
 
 use std::io::Cursor;
 
-use anyhow::{Error, Result};
-
 use crate::JSONParser;
 
 /// Extracts JSON from a string and returns the result as a String.
@@ -38,7 +36,7 @@ use crate::JSONParser;
 /// let json = extract_json_to_string(input).unwrap();
 /// assert_eq!(json, "{\"id\":1}{\"id\":2}");
 /// ```
-pub fn extract_json_to_string(input: &str) -> Result<String, Error> {
+pub fn extract_json_to_string(input: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut parser = JSONParser::new();
     let mut buffer = Vec::new();
     

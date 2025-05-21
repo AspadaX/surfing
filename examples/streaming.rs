@@ -7,7 +7,7 @@
 use std::io::{BufWriter, Write};
 use surfing::JSONParser;
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new parser
     let mut parser = JSONParser::new();
     

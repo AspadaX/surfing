@@ -12,7 +12,6 @@ keywords = ["json", "parsing", "streaming", "extract", "filter"]
 categories = ["parsing", "text-processing"]
 
 [dependencies]
-anyhow = "1.0.98"
 serde = { version = "1.0", optional = true, features = ["derive"] }
 serde_json = { version = "1.0", optional = true }
 

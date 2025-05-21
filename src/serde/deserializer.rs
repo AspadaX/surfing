@@ -4,7 +4,6 @@ use std::io::Cursor;
 
 #[cfg(feature = "serde")]
 use {
-    anyhow::Error,
     serde::de::DeserializeOwned,
     serde_json::Error as SerdeJsonError,
 };
@@ -17,7 +16,7 @@ use crate::utils::extract_json_to_string;
 #[cfg(feature = "serde")]
 pub enum DeserializeError {
     /// Error extracting JSON from text
-    Extraction(Error),
+    Extraction(String),
     /// Error deserializing the extracted JSON
     Deserialization(SerdeJsonError),
 }
@@ -36,7 +35,7 @@ impl std::fmt::Display for DeserializeError {
 impl std::error::Error for DeserializeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            DeserializeError::Extraction(e) => Some(e.as_ref()),
+            DeserializeError::Extraction(_) => None,
             DeserializeError::Deserialization(e) => Some(e),
         }
     }
@@ -85,7 +84,10 @@ where
     T: DeserializeOwned,
 {
     // First, extract the JSON from the mixed text
-    let json = extract_json_to_string(input).map_err(DeserializeError::Extraction)?;
+    let json = match extract_json_to_string(input) {
+        Ok(json) => json,
+        Err(e) => return Err(DeserializeError::Extraction(e.to_string())),
+    };
 
     // Then deserialize it using serde
     serde_json::from_str(&json).map_err(DeserializeError::Deserialization)
@@ -161,13 +163,13 @@ where
     {
         let mut writer = Cursor::new(&mut buffer);
         if let Err(e) = parser.extract_json_from_stream(&mut writer, input) {
-            return Err(DeserializeError::Extraction(e));
+            return Err(DeserializeError::Extraction(e.to_string()));
         }
     }
     
     // Convert buffer to string
     let json = String::from_utf8(buffer)
-        .map_err(|e| DeserializeError::Extraction(Error::new(e)))?;
+        .map_err(|e| DeserializeError::Extraction(e.to_string()))?;
     
     // Get any previously extracted JSON that might still be in the buffer
     // If we received empty input but parser has finished JSON processing, use whatever is in the buffer
@@ -178,12 +180,12 @@ where
             let mut writer = Cursor::new(&mut buffer);
             // Write an empty string to trigger the buffer flush
             if let Err(e) = parser.extract_json_from_stream(&mut writer, "") {
-                return Err(DeserializeError::Extraction(e));
+                return Err(DeserializeError::Extraction(e.to_string()));
             }
         }
         
         let complete_json = String::from_utf8(buffer)
-            .map_err(|e| DeserializeError::Extraction(Error::new(e)))?;
+            .map_err(|e| DeserializeError::Extraction(e.to_string()))?;
             
         if !complete_json.is_empty() {
             return serde_json::from_str(&complete_json).map_err(DeserializeError::Deserialization);
@@ -195,9 +197,9 @@ where
         serde_json::from_str(&json).map_err(DeserializeError::Deserialization)
     } else {
         // Return an error if we don't have complete JSON
-        Err(DeserializeError::Extraction(Error::msg(
-            "Incomplete JSON: parser is still expecting more input",
-        )))
+        Err(DeserializeError::Extraction(
+            "Incomplete JSON: parser is still expecting more input".to_string()
+        ))
     }
 }
 

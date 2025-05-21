@@ -5,7 +5,7 @@
 
 use surfing::extract_json_to_string;
 
-fn main() -> Result<(), anyhow::Error> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Input containing mixed text and JSON
     let inputs = [
         "System log: {\"level\":\"info\",\"component\":\"auth\",\"message\":\"User logged in\"} at 2023-06-15",

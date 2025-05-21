@@ -13,16 +13,14 @@ Surfing provides utilities to extract JSON objects from text streams, making it 
 - Processing log files containing JSON entries mixed with plain text
 - Extracting JSON objects from console output
 - Handling streaming JSON data that might arrive in chunks
-- Filtering JSON content from mixed data sources
+- Filtering JSON content from mixed data sources, such as LLM outputs
 
 ## Features
 
 - Extract JSON objects and arrays from mixed text content
 - Support for processing partial JSON (streaming)
-- Simple API that works with any writer implementing the `Write` trait
-- High-level utility functions for common use cases
 - Serde integration for direct deserialization (optional feature)
-- Streaming deserializer for handling JSON in data streams
+  - Streaming deserializer for handling JSON in data streams
 - Zero dependencies (aside from `anyhow` for error handling)
 
 ## Installation
@@ -40,29 +38,6 @@ surfing = { version = "0.1.0", features = ["serde"] }
 ```
 
 ## Usage
-
-### Basic Extraction
-
-Extract JSON objects from text containing non-JSON content:
-
-```rust
-use std::io::BufWriter;
-use surfing::JSONParser;
-
-let mut parser = JSONParser::new();
-let mut buffer = Vec::new();
-
-{
-    let mut writer = BufWriter::new(&mut buffer);
-    parser.extract_json_from_stream(
-        &mut writer, 
-        "Log entry: {\"level\":\"info\",\"message\":\"Server started\"} End of line"
-    ).unwrap();
-}
-
-let json = String::from_utf8(buffer).unwrap();
-assert_eq!(json, "{\"level\":\"info\",\"message\":\"Server started\"}");
-```
 
 ### Simple Utility Function
 
@@ -89,12 +64,16 @@ let mut buffer = Vec::new();
 
 {
     let mut writer = BufWriter::new(&mut buffer);
-    
-    // First chunk with partial JSON
-    parser.extract_json_from_stream(&mut writer, "Starting {\"status\":").unwrap();
-    
-    // Second chunk completing the JSON
-    parser.extract_json_from_stream(&mut writer, "\"running\",\"uptime\":42}").unwrap();
+
+    // Process chunks in a loop
+    let chunks = [
+        "Starting {\"status\":",
+        "\"running\",\"uptime\":42}"
+    ];
+
+    for chunk in chunks.iter() {
+        parser.extract_json_from_stream(&mut writer, chunk).unwrap();
+    }
 }
 
 let json = String::from_utf8(buffer).unwrap();
@@ -114,12 +93,18 @@ let mut parser = JSONParser::new();
 // Lock stdout for better performance with multiple writes
 let stdout = stdout();
 let mut handle = stdout.lock();
+let stream = [
+    "Starting {\"status\":",
+    "\"running\",\"uptime\":42}"
+]
 
 // This would print only the JSON part to the console
-parser.extract_json_from_stream(
-    &mut handle, 
-    "Config: {\"debug\":true,\"port\":8080}"
-).unwrap();
+for chunk in stream.iter() {
+    parser.extract_json_from_stream(
+        &mut handle, 
+        chunk
+    ).unwrap();
+}
 ```
 
 ## Performance Considerations
