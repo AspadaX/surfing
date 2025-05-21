@@ -1,4 +1,4 @@
-# Surfing 🌊
+# Surfing 🏄
 
 A Rust library for parsing JSON objects from text streams.
 
