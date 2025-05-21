@@ -168,37 +168,6 @@ assert_eq!(entry.message, "Started server");
 
 Process and deserialize streaming data in two ways:
 
-#### Low-level API
-
-```rust
-use serde::Deserialize;
-use surfing::JSONParser;
-use surfing::serde::from_mixed_text_with_parser;
-
-#[derive(Debug, Deserialize)]
-struct Config {
-    name: String,
-    port: u16,
-}
-
-let mut parser = JSONParser::new();
-
-// Process the chunks as they arrive
-let chunk1 = "Config: {\"name\":\"";
-let chunk2 = "api-server\",\"port\":8080}";
-
-// First chunk (incomplete)
-match from_mixed_text_with_parser::<Config>(&mut parser, chunk1) {
-    Ok(_) => println!("Complete"),
-    Err(_) => println!("Incomplete, waiting for more data"),
-}
-
-// Second chunk completes the JSON
-let config: Config = from_mixed_text_with_parser(&mut parser, chunk2).unwrap();
-assert_eq!(config.name, "api-server");
-assert_eq!(config.port, 8080);
-```
-
 #### High-level StreamingDeserializer
 
 For a more convenient API, use the `StreamingDeserializer`:
@@ -236,6 +205,37 @@ assert_eq!(user.id, 42);
 // Third chunk - no more JSON to extract
 let result = deserializer.process_chunk(chunks[2]);
 assert!(result.is_none());
+```
+
+#### Low-level API
+
+```rust
+use serde::Deserialize;
+use surfing::JSONParser;
+use surfing::serde::from_mixed_text_with_parser;
+
+#[derive(Debug, Deserialize)]
+struct Config {
+    name: String,
+    port: u16,
+}
+
+let mut parser = JSONParser::new();
+
+// Process the chunks as they arrive
+let chunk1 = "Config: {\"name\":\"";
+let chunk2 = "api-server\",\"port\":8080}";
+
+// First chunk (incomplete)
+match from_mixed_text_with_parser::<Config>(&mut parser, chunk1) {
+    Ok(_) => println!("Complete"),
+    Err(_) => println!("Incomplete, waiting for more data"),
+}
+
+// Second chunk completes the JSON
+let config: Config = from_mixed_text_with_parser(&mut parser, chunk2).unwrap();
+assert_eq!(config.name, "api-server");
+assert_eq!(config.port, 8080);
 ```
 
 ## Examples
