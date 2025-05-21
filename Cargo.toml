@@ -1,6 +1,6 @@
 [package]
 name = "surfing"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Surfing Team"]
 description = "A Rust library for parsing JSON objects from text streams"
