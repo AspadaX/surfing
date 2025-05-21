@@ -1,0 +1,56 @@
+[package]
+name = "surfing"
+version = "0.1.0"
+edition = "2021"
+authors = ["Surfing Team"]
+description = "A Rust library for parsing JSON objects from text streams"
+license = "MIT"
+repository = "https://github.com/surfing/surfing"
+documentation = "https://docs.rs/surfing"
+readme = "README.md"
+keywords = ["json", "parsing", "streaming", "extract", "filter"]
+categories = ["parsing", "text-processing"]
+
+[dependencies]
+anyhow = "1.0.98"
+serde = { version = "1.0", optional = true, features = ["derive"] }
+serde_json = { version = "1.0", optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json"]
+
+[lib]
+name = "surfing"
+path = "src/lib.rs"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "streaming"
+path = "examples/streaming.rs"
+
+[[example]]
+name = "stdout"
+path = "examples/stdout.rs"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+
+[[example]]
+name = "serde_integration"
+path = "examples/serde_integration.rs"
+required-features = ["serde"]
+
+[[example]]
+name = "streaming_serde"
+path = "examples/streaming_serde.rs"
+required-features = ["serde"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+features = ["serde"]
