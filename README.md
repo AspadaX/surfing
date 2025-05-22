@@ -25,16 +25,14 @@ Surfing provides utilities to extract JSON objects from text streams, making it 
 
 ## Installation
 
-Add this to your `Cargo.toml`:
+Use Cargo to add `surfing` as a dependency of your project:
+``bash
+cargo add surfing
+``
 
-```toml
-# Basic functionality
-[dependencies]
-surfing = "0.1.0"
-
-# Or with Serde support
-[dependencies]
-surfing = { version = "0.1.0", features = ["serde"] }
+Or, enable `serde` feature for serde integration:
+```bash
+cargo add surfing --features serde
 ```
 
 ## Usage
