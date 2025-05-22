@@ -39,12 +39,12 @@ use crate::JSONParser;
 pub fn extract_json_to_string(input: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut parser = JSONParser::new();
     let mut buffer = Vec::new();
-    
+
     {
         let mut writer = Cursor::new(&mut buffer);
         parser.extract_json_from_stream(&mut writer, input)?;
     }
-    
+
     Ok(String::from_utf8(buffer)?)
 }
 

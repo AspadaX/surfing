@@ -8,7 +8,7 @@ use crate::parser::marker::Marker;
 /// A parser that extracts JSON objects and arrays from a stream of text.
 ///
 /// `JSONParser` can process text that contains both JSON and non-JSON content,
-/// and will extract only the JSON parts. It handles both complete and partial 
+/// and will extract only the JSON parts. It handles both complete and partial
 /// JSON documents, allowing for incremental parsing of streaming data.
 ///
 /// # Examples
@@ -20,7 +20,7 @@ use crate::parser::marker::Marker;
 /// // Create a new parser
 /// let mut parser = JSONParser::new();
 /// let mut buffer = Vec::new();
-/// 
+///
 /// // Process text with embedded JSON
 /// {
 ///     let mut writer = BufWriter::new(&mut buffer);
@@ -54,7 +54,7 @@ impl JSONParser {
             markers: Vec::new(),
         }
     }
-    
+
     /// Checks if the parser is currently processing a JSON structure.
     ///
     /// This method returns `true` when the parser is in the middle of processing
@@ -85,7 +85,7 @@ impl JSONParser {
     pub fn is_in_json(&self) -> bool {
         !self.markers.is_empty()
     }
-    
+
     /// Removes the marker pair when a closing marker is found.
     ///
     /// # Arguments
@@ -95,39 +95,39 @@ impl JSONParser {
         // Create reversed markers for finding the ending marker
         let mut markers_to_reverse: Vec<Marker> = self.markers.clone();
         markers_to_reverse.reverse();
-        
+
         // Look for a start marker
         for marker in markers_to_reverse.iter() {
             // If we find a start marker, we remove the marker from the buffer
             if marker.is_counter_part(item) {
                 self.markers.pop();
                 return;
-            } 
+            }
         }
     }
-    
+
     /// Updates the internal markers state based on the current character.
     ///
     /// # Arguments
     ///
     /// * `item` - The character to process.
     fn update_markers(&mut self, item: &char) {
-        // Store the valid start marker. 
+        // Store the valid start marker.
         // We only check the end marker.
         if let Some(marker) = Marker::new(item) {
             self.markers.push(marker);
             return;
         }
-        
+
         self.remove_markers_pair(item);
-        
+
         // If we have no markers left, return
-        if self.markers.is_empty() { 
+        if self.markers.is_empty() {
             self.buffer.clear();
             return;
         }
     }
-    
+
     /// Extracts JSON content from a string and writes it to the provided writer.
     ///
     /// This method processes each character in the input string and:
@@ -168,7 +168,11 @@ impl JSONParser {
     ///     let _ = parser.extract_json_from_stream(&mut handle, "{\"key\": \"value\"}");
     /// }
     /// ```
-    pub fn extract_json_from_stream<W: Write>(&mut self, writer: &mut W, json_object: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn extract_json_from_stream<W: Write>(
+        &mut self,
+        writer: &mut W,
+        json_object: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for item in json_object.chars() {
             if self.is_in_json() {
                 self.buffer.push(item);
@@ -225,7 +229,9 @@ mod tests {
 
         {
             let mut writer = BufWriter::new(&mut buffer);
-            parser.extract_json_from_stream(&mut writer, "{\"key\": [1, 2, 3]}").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, "{\"key\": [1, 2, 3]}")
+                .unwrap();
             assert!(!parser.is_in_json());
         }
 
@@ -240,17 +246,21 @@ mod tests {
 
         {
             let mut writer = BufWriter::new(&mut buffer);
-            parser.extract_json_from_stream(&mut writer, "{\"key").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, "{\"key")
+                .unwrap();
             assert!(parser.is_in_json());
-    
-            parser.extract_json_from_stream(&mut writer, "\": [1, 2, 3]}").unwrap();
+
+            parser
+                .extract_json_from_stream(&mut writer, "\": [1, 2, 3]}")
+                .unwrap();
             assert!(!parser.is_in_json());
         }
 
         let output = String::from_utf8(buffer).unwrap();
         assert_eq!(output, "{\"key\": [1, 2, 3]}");
     }
-    
+
     #[test]
     fn test_json_parser_extract_json_mixed_with_text() {
         let mut parser = JSONParser::new();
@@ -260,24 +270,34 @@ mod tests {
             let mut writer = BufWriter::new(&mut buffer);
 
             // Plain text followed by JSON
-            parser.extract_json_from_stream(&mut writer, "Some plain text {\"id\": 123, \"data\": ").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, "Some plain text {\"id\": 123, \"data\": ")
+                .unwrap();
             assert!(parser.is_in_json());
 
             // More JSON with nested structure
-            parser.extract_json_from_stream(&mut writer, "{\"nested\": [1, 2, {\"deep\": true}]}}").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, "{\"nested\": [1, 2, {\"deep\": true}]}}")
+                .unwrap();
             assert!(!parser.is_in_json());
 
             // JSON followed by plain text
-            parser.extract_json_from_stream(&mut writer, " followed by more text").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, " followed by more text")
+                .unwrap();
             assert!(!parser.is_in_json());
 
             // Another JSON object
-            parser.extract_json_from_stream(&mut writer, " and another {\"array\": [4, 5, 6]}").unwrap();
+            parser
+                .extract_json_from_stream(&mut writer, " and another {\"array\": [4, 5, 6]}")
+                .unwrap();
             assert!(!parser.is_in_json());
         }
 
         let output = String::from_utf8(buffer).unwrap();
-        assert_eq!(output, 
-            "{\"id\": 123, \"data\": {\"nested\": [1, 2, {\"deep\": true}]}}{\"array\": [4, 5, 6]}");
+        assert_eq!(
+            output,
+            "{\"id\": 123, \"data\": {\"nested\": [1, 2, {\"deep\": true}]}}{\"array\": [4, 5, 6]}"
+        );
     }
 }

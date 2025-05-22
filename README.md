@@ -6,231 +6,164 @@ A Rust library for parsing JSON objects from text streams.
 [![Documentation](https://docs.rs/surfing/badge.svg)](https://docs.rs/surfing)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Overview
+## What is Surfing?
 
-Surfing provides utilities to extract JSON objects from text streams, making it particularly useful for:
+Surfing is a lightweight Rust library that extracts JSON objects from mixed text content. 
 
-- Processing log files containing JSON entries mixed with plain text
-- Extracting JSON objects from console output
-- Handling streaming JSON data that might arrive in chunks
-- Filtering JSON content from mixed data sources, such as LLM outputs
+## Real-world Use Cases
 
-## Features
+### Extracting Structured Data from LLM Outputs
 
-- Extract JSON objects and arrays from mixed text content
-- Support for processing partial JSON (streaming)
-- Serde integration for direct deserialization (optional feature)
-  - Streaming deserializer for handling JSON in data streams
-- Zero dependencies
-
-## Installation
-
-Use Cargo to add `surfing` as a dependency of your project:
-``bash
-cargo add surfing
-``
-
-Or, enable `serde` feature for serde integration:
-```bash
-cargo add surfing --features serde
-```
-
-## Usage
-
-### Simple Utility Function
-
-For simple use cases, use the high-level utility function:
-
-```rust
-use surfing::extract_json_to_string;
-
-let input = "Log entry: {\"level\":\"info\",\"message\":\"Server started\"} End of line";
-let json = extract_json_to_string(input).unwrap();
-assert_eq!(json, "{\"level\":\"info\",\"message\":\"Server started\"}");
-```
-
-### Processing Streaming Data
-
-Handle JSON that might arrive in chunks:
-
-```rust
-use std::io::BufWriter;
-use surfing::JSONParser;
-
-let mut parser = JSONParser::new();
-let mut buffer = Vec::new();
-
-{
-    let mut writer = BufWriter::new(&mut buffer);
-
-    // Process chunks in a loop
-    let chunks = [
-        "Starting {\"status\":",
-        "\"running\",\"uptime\":42}"
-    ];
-
-    for chunk in chunks.iter() {
-        parser.extract_json_from_stream(&mut writer, chunk).unwrap();
-    }
-}
-
-let json = String::from_utf8(buffer).unwrap();
-assert_eq!(json, "{\"status\":\"running\",\"uptime\":42}");
-```
-
-### Using with Standard Output
-
-Process JSON and write directly to stdout:
+Large Language Models often output JSON mixed with explanatory text, and reasoning models may output jsons with their reasoning steps. Surfing makes it easy to extract and use this structured data:
 
 ```rust
 use std::io::stdout;
 use surfing::JSONParser;
 
+// Process LLM response containing JSON
+let llm_response = "Here's the user profile: {\"id\":123,\"name\":\"Alice\",\"role\":\"admin\"} Let me know if you need more info.";
+
 let mut parser = JSONParser::new();
+let mut lock = stdout().lock();
 
-// Lock stdout for better performance with multiple writes
-let stdout = stdout();
-let mut handle = stdout.lock();
-let stream = [
-    "Starting {\"status\":",
-    "\"running\",\"uptime\":42}"
-]
-
-// This would print only the JSON part to the console
-for chunk in stream.iter() {
-    parser.extract_json_from_stream(
-        &mut handle, 
-        chunk
-    ).unwrap();
-}
+// Extract only the JSON part
+parser.extract_json_from_stream(&mut lock, llm_response).unwrap();
+// Output: {"id":123,"name":"Alice","role":"admin"}
 ```
 
-## Performance Considerations
+### Processing Streaming LLM Responses
 
-### Buffering
-
-For optimal performance when processing large files or streams:
-
-- Use `BufWriter` or `BufReader` to reduce the number of system calls
-- Process data in chunks of appropriate size (typically 4-8KB) 
-- Reuse parser instances when processing multiple chunks to maintain state
-
-### Memory Usage
-
-The parser stores minimal state:
-
-- Current JSON nesting level
-- A small buffer for tracking markers
-
-This makes it suitable for processing large streams with minimal memory overhead.
-
-## Serde Integration
-
-When enabled with the `serde` feature, you can deserialize directly from mixed text:
+When working with streaming API responses, JSON often arrives in chunks. Surfing handles this seamlessly:
 
 ```rust
-use serde::Deserialize;
-use surfing::serde::from_mixed_text;
+use std::io::stdout;
+use surfing::JSONParser;
 
-#[derive(Debug, Deserialize)]
-struct LogEntry {
-    level: String,
-    message: String,
+// Initialize the parser
+let mut json_parser = JSONParser::new();
+let mut lock = stdout().lock();
+
+// Process each chunk as it arrives from a streaming API
+let chunks = [
+    "The weather forecast is {\"location\":\"New York\",",
+    "\"temperature\":72,\"conditions\":\"sunny\"}",
+    " Hope that helps!"
+];
+
+for chunk in chunks {
+    json_parser.extract_json_from_stream(&mut lock, chunk).unwrap();
 }
-
-// Text with embedded JSON
-let input = "Log entry: {\"level\":\"info\",\"message\":\"Started server\"} End of line";
-
-// Directly deserialize the JSON part into a struct
-let entry: LogEntry = from_mixed_text(input).unwrap();
-assert_eq!(entry.level, "info");
-assert_eq!(entry.message, "Started server");
+// Outputs: {"location":"New York","temperature":72,"conditions":"sunny"}
 ```
 
-### Streaming Deserialization
+### Deserializing JSON Directly into Rust Structs
 
-Process and deserialize streaming data in two ways:
-
-#### High-level StreamingDeserializer
-
-For a more convenient API, use the `StreamingDeserializer`:
+With the `serde` feature enabled, you can directly extract and deserialize JSON into your data structures:
 
 ```rust
 use serde::Deserialize;
 use surfing::serde::StreamingDeserializer;
 
 #[derive(Debug, Deserialize)]
-struct User {
-    id: u64,
-    name: String,
+struct Weather {
+    location: String,
+    temperature: i32,
+    conditions: String,
 }
 
-// Create a deserializer for User structs
-let mut deserializer = StreamingDeserializer::<User>::new();
+// Create a deserializer for Weather structs
+let mut deserializer = StreamingDeserializer::<Weather>::new();
 
 // Process chunks as they arrive
 let chunks = [
-    "Log line {\"id\":",
-    "42,\"name\":\"Alice\"}",
-    " more text"
+    "The weather forecast is {\"location\":\"New York\",",
+    "\"temperature\":72,\"conditions\":\"sunny\"} Hope that helps!"
 ];
 
-// First chunk - incomplete JSON
-let result = deserializer.process_chunk(chunks[0]);
-assert!(result.is_none());
+for chunk in chunks {
+    let result = deserializer.process_chunk(chunk).unwrap();
+    if let Some(weather) = result {
+        println!("Weather in {}: {}°F, {}", 
+            weather.location, 
+            weather.temperature,
+            weather.conditions);
+    }
+}
 
-// Second chunk - completes the JSON
-let result = deserializer.process_chunk(chunks[1]);
-assert!(result.is_some());
-let user = result.unwrap();
-assert_eq!(user.id, 42);
-
-// Third chunk - no more JSON to extract
-let result = deserializer.process_chunk(chunks[2]);
-assert!(result.is_none());
+// Output: Weather in New York: 72°F, sunny
 ```
 
-#### Low-level API
+### Processing Log Files with Embedded JSON
+
+Many modern logging systems emit JSON data. Surfing helps extract and analyze this data:
 
 ```rust
-use serde::Deserialize;
+use std::io::BufWriter;
 use surfing::JSONParser;
-use surfing::serde::from_mixed_text_with_parser;
 
-#[derive(Debug, Deserialize)]
-struct Config {
-    name: String,
-    port: u16,
-}
+// Log entries with embedded JSON
+let log_entries = r#"
+[2023-06-15 14:30:00] INFO: System starting
+[2023-06-15 14:30:01] DEBUG: {"component":"database","status":"connected","latency_ms":45}
+[2023-06-15 14:30:05] ERROR: {"error":"connection_timeout","service":"auth","attempts":3}
+[2023-06-15 14:30:10] INFO: System ready
+"#;
 
 let mut parser = JSONParser::new();
-
-// Process the chunks as they arrive
-let chunk1 = "Config: {\"name\":\"";
-let chunk2 = "api-server\",\"port\":8080}";
-
-// First chunk (incomplete)
-match from_mixed_text_with_parser::<Config>(&mut parser, chunk1) {
-    Ok(_) => println!("Complete"),
-    Err(_) => println!("Incomplete, waiting for more data"),
+let mut buffer = Vec::new();
+{
+    let mut writer = BufWriter::new(&mut buffer);
+    parser.extract_json_from_stream(&mut writer, log_entries).unwrap();
 }
 
-// Second chunk completes the JSON
-let config: Config = from_mixed_text_with_parser(&mut parser, chunk2).unwrap();
-assert_eq!(config.name, "api-server");
-assert_eq!(config.port, 8080);
+let json_only = String::from_utf8(buffer).unwrap();
+println!("{}", json_only);
+// Output:
+// {"component":"database","status":"connected","latency_ms":45}
+// {"error":"connection_timeout","service":"auth","attempts":3}
 ```
 
-## Examples
+## Installation
 
-Check the [examples](https://github.com/surfing/surfing/tree/main/examples) directory for more detailed usage scenarios:
+Add `surfing` to your project:
 
+```bash
+cargo add surfing
+```
+
+Or with serde support:
+
+```bash
+cargo add surfing --features serde
+```
+
+## How It Works
+
+Surfing works by:
+
+1. Watching for JSON opening markers (`{` or `[`)
+2. Tracking nested JSON structures
+3. Writing only the JSON content to your output
+4. Resetting state when complete JSON objects are found
+
+The parser is stateful, so it can handle JSON objects split across multiple chunks.
+
+## Key Advantages
+
+- **Zero external dependencies** in the core library
+- **Streaming-friendly** for processing large files or API responses
+- **Memory-efficient** with minimal state tracking
+- **Serde integration** for direct deserialization (optional)
+- **Simple API** with both high and low-level options
+
+## Learn More
+
+Check out the examples directory for more use cases:
+
+- `openai_json_extraction.rs` - Extracting JSON from OpenAI API responses
 - `basic.rs` - Simple extraction from mixed text
 - `streaming.rs` - Processing data in chunks
 - `stdout.rs` - Filtering JSON to standard output
-- `simple.rs` - Using the high-level utility functions
-- `serde_integration.rs` - Using Serde to deserialize extracted JSON
-- `streaming_serde.rs` - Using StreamingDeserializer for stream processing
 
 ## License
 

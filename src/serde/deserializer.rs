@@ -3,13 +3,10 @@
 use std::io::Cursor;
 
 #[cfg(feature = "serde")]
-use {
-    serde::de::DeserializeOwned,
-    serde_json::Error as SerdeJsonError,
-};
+use {serde::de::DeserializeOwned, serde_json::Error as SerdeJsonError};
 
-use crate::JSONParser;
 use crate::utils::extract_json_to_string;
+use crate::JSONParser;
 
 /// Error type for deserialization failures.
 #[derive(Debug)]
@@ -158,7 +155,7 @@ where
 {
     // Set up a buffer to collect the JSON
     let mut buffer = Vec::new();
-    
+
     // Extract JSON from the input text
     {
         let mut writer = Cursor::new(&mut buffer);
@@ -166,11 +163,11 @@ where
             return Err(DeserializeError::Extraction(e.to_string()));
         }
     }
-    
+
     // Convert buffer to string
-    let json = String::from_utf8(buffer)
-        .map_err(|e| DeserializeError::Extraction(e.to_string()))?;
-    
+    let json =
+        String::from_utf8(buffer).map_err(|e| DeserializeError::Extraction(e.to_string()))?;
+
     // Get any previously extracted JSON that might still be in the buffer
     // If we received empty input but parser has finished JSON processing, use whatever is in the buffer
     if json.is_empty() && !parser.is_in_json() {
@@ -183,22 +180,22 @@ where
                 return Err(DeserializeError::Extraction(e.to_string()));
             }
         }
-        
-        let complete_json = String::from_utf8(buffer)
-            .map_err(|e| DeserializeError::Extraction(e.to_string()))?;
-            
+
+        let complete_json =
+            String::from_utf8(buffer).map_err(|e| DeserializeError::Extraction(e.to_string()))?;
+
         if !complete_json.is_empty() {
             return serde_json::from_str(&complete_json).map_err(DeserializeError::Deserialization);
         }
     }
-    
+
     // Normal case: attempt deserialization if we have a complete JSON object
     if !parser.is_in_json() && !json.is_empty() {
         serde_json::from_str(&json).map_err(DeserializeError::Deserialization)
     } else {
         // Return an error if we don't have complete JSON
         Err(DeserializeError::Extraction(
-            "Incomplete JSON: parser is still expecting more input".to_string()
+            "Incomplete JSON: parser is still expecting more input".to_string(),
         ))
     }
 }
@@ -224,7 +221,7 @@ mod tests {
     fn test_deserialize_simple_struct() {
         let input = "Text before {\"name\":\"test\",\"value\":42} text after";
         let result: TestStruct = from_mixed_text(input).unwrap();
-        
+
         assert_eq!(
             result,
             TestStruct {
@@ -238,7 +235,7 @@ mod tests {
     fn test_deserialize_nested_struct() {
         let input = "Data: {\"id\":123,\"data\":{\"name\":\"nested\",\"value\":99}}";
         let result: NestedStruct = from_mixed_text(input).unwrap();
-        
+
         assert_eq!(
             result,
             NestedStruct {
@@ -255,10 +252,10 @@ mod tests {
     fn test_deserialize_with_parser() {
         // Create a simple parser for complete JSON
         let mut parser = JSONParser::new();
-        
+
         let json = "{\"name\":\"parser_test\",\"value\":42}";
         let result: TestStruct = from_mixed_text_with_parser(&mut parser, json).unwrap();
-        
+
         assert_eq!(
             result,
             TestStruct {
@@ -272,7 +269,7 @@ mod tests {
     fn test_error_on_invalid_json() {
         let input = "Invalid: {\"name\":\"test\",\"value\":\"not a number\"}";
         let result: Result<TestStruct, _> = from_mixed_text(input);
-        
+
         assert!(result.is_err());
         if let Err(DeserializeError::Deserialization(_)) = result {
             // Expected error type
@@ -285,10 +282,10 @@ mod tests {
     fn test_error_on_incomplete_json() {
         let mut parser = JSONParser::new();
         let input = "{\"name\":\"incomplete\"";
-        
+
         let result: Result<TestStruct, _> = from_mixed_text_with_parser(&mut parser, input);
         assert!(result.is_err());
-        
+
         // Make sure the parser is still in-progress
         assert!(parser.is_in_json());
     }

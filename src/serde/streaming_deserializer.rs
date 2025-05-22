@@ -9,8 +9,8 @@ use std::marker::PhantomData;
 
 use serde::de::DeserializeOwned;
 
-use crate::JSONParser;
 use crate::serde::deserializer::DeserializeError;
+use crate::JSONParser;
 
 /// A deserializer for processing streams of text containing JSON.
 ///
@@ -153,7 +153,11 @@ where
         let mut buffer = Vec::new();
         {
             let mut writer = Cursor::new(&mut buffer);
-            if self.parser.extract_json_from_stream(&mut writer, chunk).is_err() {
+            if self
+                .parser
+                .extract_json_from_stream(&mut writer, chunk)
+                .is_err()
+            {
                 return None;
             }
         }
@@ -170,14 +174,10 @@ where
             let accumulated_json = self.accumulated_json.clone();
             // Reset the accumulated JSON for the next object
             self.accumulated_json.clear();
-            
+
             match serde_json::from_str::<T>(&accumulated_json) {
-                Ok(value) => {
-                    Some(value)
-                }
-                Err(_) => {
-                    None
-                },
+                Ok(value) => Some(value),
+                Err(_) => None,
             }
         } else {
             // Still waiting for more JSON
@@ -360,10 +360,10 @@ mod tests {
     #[test]
     fn test_complete_json_in_one_chunk() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
+
         let result = deserializer.process_chunk("{\"id\":1,\"name\":\"test\"}");
         assert!(result.is_some());
-        
+
         let data = result.unwrap();
         assert_eq!(data.id, 1);
         assert_eq!(data.name, "test");
@@ -372,19 +372,19 @@ mod tests {
     #[test]
     fn test_partial_json_across_multiple_chunks() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
+
         // First chunk - no complete JSON yet
         let result = deserializer.process_chunk("{\"id\":2,");
         assert!(result.is_none());
-        
+
         // Second chunk - still incomplete
         let result = deserializer.process_chunk("\"name\":\"");
         assert!(result.is_none());
-        
+
         // Third chunk - completes the JSON
         let result = deserializer.process_chunk("streaming\"}");
         assert!(result.is_some());
-        
+
         let data = result.unwrap();
         assert_eq!(data.id, 2);
         assert_eq!(data.name, "streaming");
@@ -393,10 +393,11 @@ mod tests {
     #[test]
     fn test_mixed_text_with_json() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
-        let result = deserializer.process_chunk("Log entry: {\"id\":3,\"name\":\"mixed\"} End of log");
+
+        let result =
+            deserializer.process_chunk("Log entry: {\"id\":3,\"name\":\"mixed\"} End of log");
         assert!(result.is_some());
-        
+
         let data = result.unwrap();
         assert_eq!(data.id, 3);
         assert_eq!(data.name, "mixed");
@@ -405,16 +406,16 @@ mod tests {
     #[test]
     fn test_reset_deserializer() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
+
         // Start processing some JSON
         deserializer.process_chunk("{\"id\":4,");
         assert!(deserializer.is_in_json());
-        
+
         // Reset the deserializer
         deserializer.reset();
         assert!(!deserializer.is_in_json());
         assert_eq!(deserializer.accumulated_json(), "");
-        
+
         // Start fresh
         let result = deserializer.process_chunk("{\"id\":4,\"name\":\"reset\"}");
         assert!(result.is_some());
@@ -424,10 +425,10 @@ mod tests {
     fn test_finalize_with_complete_json() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
         deserializer.process_chunk("{\"id\":5,\"name\":\"finalize\"}");
-        
+
         let result = deserializer.finalize();
         assert!(result.is_ok());
-        
+
         let data = result.unwrap();
         assert!(data.is_some());
         assert_eq!(data.unwrap().name, "finalize");
@@ -437,7 +438,7 @@ mod tests {
     fn test_finalize_with_incomplete_json() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
         deserializer.process_chunk("{\"id\":6,\"name\":");
-        
+
         let result = deserializer.finalize();
         assert!(result.is_err());
     }
@@ -445,7 +446,7 @@ mod tests {
     #[test]
     fn test_no_json_returns_none() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
+
         let result = deserializer.process_chunk("This text contains no JSON objects");
         assert!(result.is_none());
     }
@@ -453,15 +454,15 @@ mod tests {
     #[test]
     fn test_multiple_json_objects() {
         let mut deserializer = StreamingDeserializer::<TestData>::new();
-        
+
         // Process a chunk with two complete JSON objects
         let chunk = "{\"id\":7,\"name\":\"first\"}{\"id\":8,\"name\":\"second\"}";
-        
+
         // Should get the first object
         let result1 = deserializer.process_chunk(chunk);
         assert!(result1.is_some());
         assert_eq!(result1.unwrap().id, 7);
-        
+
         // The second object should be ignored (current implementation limitation)
         // A more advanced implementation could handle this by tracking partial objects
     }

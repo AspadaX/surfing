@@ -48,7 +48,7 @@ impl Marker {
                         expected_counterpart: '}',
                     });
                 }
-                
+
                 if *marker == '[' {
                     return Some(Self {
                         expected_counterpart: ']',
@@ -56,10 +56,10 @@ impl Marker {
                 }
             }
         }
-        
+
         None
     }
-    
+
     /// Checks if the provided character is the corresponding counter part for this marker.
     ///
     /// # Arguments

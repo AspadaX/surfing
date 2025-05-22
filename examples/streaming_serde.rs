@@ -6,9 +6,9 @@
 //! Run with: cargo run --example streaming_serde --features serde
 
 use serde::Deserialize;
-use surfing::serde::StreamingDeserializer;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
+use surfing::serde::StreamingDeserializer;
 
 // Define a data structure to deserialize into
 #[derive(Debug, Deserialize)]
@@ -27,10 +27,10 @@ struct User {
 
 fn main() {
     println!("=== Streaming Serde Example ===\n");
-    
+
     // Create a deserializer for our Message type
     let mut deserializer = StreamingDeserializer::<Message>::new();
-    
+
     // Simulate a stream of data coming in chunks
     // In a real-world scenario, this could be network data, log entries, etc.
     let stream_chunks = [
@@ -52,20 +52,23 @@ fn main() {
         "\"user\":{\"id\":1,\"name\":\"System\"}}",
         "\nStatus: Stream processing complete.\n",
     ];
-    
-    println!("Simulating stream processing with {} chunks:", stream_chunks.len());
+
+    println!(
+        "Simulating stream processing with {} chunks:",
+        stream_chunks.len()
+    );
     println!("(Processing one chunk every 500ms)\n");
-    
+
     // Process each chunk as it arrives
     for (i, chunk) in stream_chunks.iter().enumerate() {
         println!("Chunk {}: {}", i + 1, chunk.trim());
-        
+
         // In a real application, this would be where you receive data from a socket,
         // read from a file incrementally, etc.
-        
+
         // Add a small delay to simulate real-time processing
         thread::sleep(Duration::from_millis(500));
-        
+
         // Process the chunk with our deserializer
         match deserializer.process_chunk(chunk) {
             Some(message) => {
@@ -75,13 +78,20 @@ fn main() {
                 println!("   Timestamp: {}", message.timestamp);
                 println!("   Content: {}", message.content);
                 println!("   User: {} (ID: {})", message.user.name, message.user.id);
-                println!("\n   JSONParser status: {}\n", 
-                    if deserializer.is_in_json() { "In JSON" } else { "Not in JSON" });
-            },
+                println!(
+                    "\n   JSONParser status: {}\n",
+                    if deserializer.is_in_json() {
+                        "In JSON"
+                    } else {
+                        "Not in JSON"
+                    }
+                );
+            }
             None => {
                 // No complete JSON object available yet
                 if deserializer.is_in_json() {
-                    println!("   Continuing to collect JSON (Accumulated so far: {})",
+                    println!(
+                        "   Continuing to collect JSON (Accumulated so far: {})",
                         if deserializer.accumulated_json().len() > 30 {
                             format!("{}...", &deserializer.accumulated_json()[..30])
                         } else {
@@ -95,7 +105,7 @@ fn main() {
             }
         }
     }
-    
+
     println!("Stream processing complete.");
     println!("The StreamingDeserializer automatically handles:");
     println!(" - Mixed text with embedded JSON");

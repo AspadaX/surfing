@@ -1,6 +1,6 @@
 //! Serde integration for Surfing.
 //!
-//! This module provides integration with the Serde ecosystem, allowing 
+//! This module provides integration with the Serde ecosystem, allowing
 //! direct deserialization of JSON extracted from mixed text content.
 //!
 //! # Feature Flag
